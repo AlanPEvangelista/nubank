@@ -28,7 +28,7 @@ jobs:
           if [ -n "${{ secrets.VITE_API_URL }}" ]; then
             echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> $GITHUB_ENV
           else
-            echo "VITE_API_URL=http://${{ secrets.SSH_HOST }}:3001" >> $GITHUB_ENV
+            echo "VITE_API_URL=http://192.168.100.117:3001" >> $GITHUB_ENV
           fi
 
       - name: Build
@@ -66,9 +66,9 @@ jobs:
             PORT=3001
             HOST=0.0.0.0
             echo "Deploy concluído em /home/alan/nubank_trae"
-            echo "Backend esperado em http://${{ secrets.SSH_HOST }}:$PORT usando $DB_PATH"
+            echo "Backend esperado em http://192.168.100.117:$PORT usando $DB_PATH"
             echo "Para iniciar via PM2 (uma vez):"
             echo "PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH pm2 start server/index.js --name nubank-api"
             echo "Para iniciar sem PM2 (background):"
             echo "nohup env PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &"
-            echo "Checar saúde: curl http://${{ secrets.SSH_HOST }}:$PORT/health"
+            echo "Checar saúde: curl http://192.168.100.117:$PORT/health"
