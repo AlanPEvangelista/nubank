@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.js",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -14,7 +15,9 @@
     "sql.js": "^1.9.0",
     "react-chartjs-2": "^5.2.0",
     "chart.js": "^4.4.3",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "vite": "^5.4.8",

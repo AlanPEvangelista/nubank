@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { DatabaseProvider, useDatabase } from './db/DatabaseContext.jsx'
 import { format, subDays } from 'date-fns'
 import GainsByAppChart from './components/GainsByAppChart.jsx'
@@ -8,7 +8,7 @@ import EarningsForm from './components/EarningsForm.jsx'
 import FilterBar from './components/FilterBar.jsx'
 
 function AppShell() {
-  const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime } = useDatabase()
+  const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, statsByApp, statsTotalOverTime } = useDatabase()
   const [range, setRange] = useState(() => {
     const to = new Date()
     const from = subDays(to, 30)
@@ -17,14 +17,20 @@ function AppShell() {
 
   const apps = ready ? listApplications() : []
 
-  const byApp = useMemo(() => (ready ? getGainsByApplication(range.from, range.to) : []), [range, ready])
-  const totalOverTime = useMemo(() => (ready ? getTotalGainsOverTime(range.from, range.to) : []), [range, ready])
+  useEffect(() => {
+    if (!ready) return
+    getGainsByApplication(range.from, range.to)
+    getTotalGainsOverTime(range.from, range.to)
+  }, [range, ready])
+
+  const byApp = statsByApp
+  const totalOverTime = statsTotalOverTime
 
   return (
     <div className="container">
       <section className="hero">
         <div className="hero-content">
-          <h1>Controle de Aplicações Nubank</h1>
+          <h1>Controle de Aplicações</h1>
           <p>Cadastre aplicações, lançamentos de rendimentos e visualize ganhos por período.</p>
           <div style={{ marginTop: 12 }}>
             <span className="badge">SQLite Local + Gráficos</span>

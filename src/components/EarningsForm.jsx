@@ -1,16 +1,21 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useDatabase } from '../db/DatabaseContext.jsx'
 
 export default function EarningsForm() {
-  const { ready, addEarning, listApplications, listEarningsByApplication } = useDatabase()
+  const { ready, addEarning, listApplications, listEarningsByApplication, fetchEarningsByApplication } = useDatabase()
   const apps = ready ? listApplications() : []
   const [form, setForm] = useState({ applicationId: '', date: '', gross: '', net: '' })
   const [selectedApp, setSelectedApp] = useState('')
 
+  useEffect(() => {
+    if (!ready || !selectedApp) return
+    fetchEarningsByApplication(selectedApp)
+  }, [selectedApp, ready])
+
   const earnings = useMemo(() => {
     if (!ready || !selectedApp) return []
     return listEarningsByApplication(selectedApp)
-  }, [selectedApp, ready])
+  }, [selectedApp, ready, listEarningsByApplication])
 
   const onSubmit = (e) => {
     e.preventDefault()

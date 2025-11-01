@@ -15,7 +15,7 @@ Passo a passo (no terminal do servidor 192.168.100.117):
 - `npm ci`
 - `npm run build`
 - Publicar com preview do Vite:
-  - `npm run preview -- --host 0.0.0.0 --port 8080`
+  - `npm run preview -- --host 0.0.0.0 --port 8082`
 
 Alternativa com script pronto:
 - `powershell -ExecutionPolicy Bypass -File .\scripts\manual-deploy.ps1 -Port 8080 -HostAll`
