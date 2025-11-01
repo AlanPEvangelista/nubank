@@ -25,6 +25,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Publicar artefatos (opcional)
         uses: actions/upload-artifact@v4
@@ -51,3 +53,4 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             echo "Deploy concluído em /home/alan/nubank_trae"
+            echo "Backend esperado em ${HOST:-0.0.0.0}:${PORT:-3001} e DB em ${DB_PATH:-/home/alan/nubank_trae/data/nubank.sqlite}"

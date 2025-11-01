@@ -32,15 +32,16 @@ O workflow `deploy.yml` builda e copia o conteúdo da pasta `dist` para o servid
 Configuração necessária no repositório (Secrets):
 - `SSH_HOST`: `192.168.100.117`
 - `SSH_USER`: Usuário com acesso ao SSH
-- `SSH_KEY`: Chave privada do usuário (formato OpenSSH) — use `authorized_keys` no servidor
-- `SSH_PORT`: Porta do SSH (padrão `22`)
+- `SSH_PASSWORD`: Senha do usuário (alternativamente, pode usar `SSH_KEY`)
+- `SSH_PORT`: Porta do SSH (padrão `2222`)
+- `VITE_API_URL`: URL pública do backend Express (ex.: `http://seu-dominio:3001`)
 
 Destino no servidor:
 - O workflow copia arquivos para `C:/apps/nubank/site`.
 - Configure seu servidor para servir arquivos estáticos dessa pasta (ex.: IIS).
 
 Arquivo do workflow: `.github/workflows/deploy.yml`
-- Checkout, Node 20, `npm ci`, `npm run build`
+- Checkout, Node 20, `npm ci`, `npm run build` (com `VITE_API_URL` do Secrets)
 - Copia `dist/*` via `appleboy/scp-action` para `C:/apps/nubank/site`
 - Passo remoto opcional de log com `appleboy/ssh-action`
 
@@ -71,3 +72,42 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Backend Express (SQLite no servidor)
+
+Este projeto inclui uma API Express em `server/index.js` que persiste os dados em SQLite no servidor.
+
+Variáveis de ambiente suportadas pelo backend:
+- `DB_PATH`: Caminho completo do arquivo SQLite (ex.: `/home/alan/nubank_trae/data/nubank.sqlite`)
+- `PORT`: Porta HTTP (padrão `3001`)
+- `HOST`: Host de bind (padrão `0.0.0.0`)
+
+Como iniciar manualmente (Linux):
+- `export DB_PATH=/home/alan/nubank_trae/data/nubank.sqlite`
+- `export PORT=3001`
+- `export HOST=0.0.0.0`
+- `node server/index.js`
+
+Como iniciar manualmente (Windows PowerShell):
+- `$env:DB_PATH="C:\\apps\\nubank\\data\\nubank.sqlite"`
+- `$env:PORT=3001`
+- `$env:HOST="0.0.0.0"`
+- `node server/index.js`
+
+Com PM2 (Linux):
+- `pm2 start server/index.js --name nubank-api --env PORT=3001,HOST=0.0.0.0,DB_PATH=/home/alan/nubank_trae/data/nubank.sqlite`
+- `pm2 restart nubank-api --update-env` ao atualizar
+
+### Apontando o frontend para o backend do servidor
+
+O frontend usa `import.meta.env.VITE_API_URL` como base da API. Defina essa variável no build de produção:
+- Linux/macOS: `VITE_API_URL="http://seu-dominio:3001" npm run build`
+- Windows PowerShell: `$env:VITE_API_URL="http://seu-dominio:3001"; npm run build`
+
+No GitHub Actions, configure o Secret `VITE_API_URL` e o workflow irá injetá-lo no passo de build.
+
+Após subir o backend, o log inicial exibirá algo como:
+`API listening on http://0.0.0.0:3001 using /home/alan/nubank_trae/data/nubank.sqlite`
+
+Verifique o arquivo do banco no servidor:
+- `ls -la /home/alan/nubank_trae/data/` (Linux)
+- `dir C:\\apps\\nubank\\data` (Windows)

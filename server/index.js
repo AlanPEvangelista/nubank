@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename)
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'nubank.sqlite')
 const PORT = process.env.PORT || 3001
+const HOST = process.env.HOST || '0.0.0.0'
 
 const app = express()
 app.use(cors())
@@ -155,8 +156,8 @@ app.get('/stats/total-over-time', (req, res) => {
 app.get('/health', (req, res) => ok(res, { status: 'ok' }))
 
 initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`API listening on http://localhost:${PORT} using ${DB_PATH}`)
+  app.listen(PORT, HOST, () => {
+    console.log(`API listening on http://${HOST}:${PORT} using ${DB_PATH}`)
   })
 }).catch(err => {
   console.error('Failed to init DB', err)
