@@ -1,0 +1,53 @@
+name: Deploy para 192.168.100.117
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    # Executa para releases cujo target seja main, ou manual via workflow_dispatch
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.target_commitish == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publicar artefatos (opcional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Copiar build para o servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "dist/*"
+          target: "C:/apps/nubank/site"
+
+      - name: Passo remoto opcional (log)
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            powershell -NoProfile -Command "Write-Host 'Deploy concluído em C:\\apps\\nubank\\site'"
