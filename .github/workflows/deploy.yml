@@ -23,10 +23,18 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
+      - name: Definir VITE_API_URL (fallback)
+        run: |
+          if [ -n "${{ secrets.VITE_API_URL }}" ]; then
+            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> $GITHUB_ENV
+          else
+            echo "VITE_API_URL=http://${{ secrets.SSH_HOST }}:3001" >> $GITHUB_ENV
+          fi
+
       - name: Build
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
 
       - name: Publicar artefatos (opcional)
         uses: actions/upload-artifact@v4
@@ -44,7 +52,7 @@ jobs:
           source: "dist/*"
           target: "/home/alan/nubank_trae"
 
-      - name: Passo remoto opcional (log)
+      - name: Passo remoto (instruções backend)
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -52,5 +60,15 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            cd /home/alan/nubank_trae
+            mkdir -p data
+            DB_PATH=/home/alan/nubank_trae/data/nubank.sqlite
+            PORT=3001
+            HOST=0.0.0.0
             echo "Deploy concluído em /home/alan/nubank_trae"
-            echo "Backend esperado em ${HOST:-0.0.0.0}:${PORT:-3001} e DB em ${DB_PATH:-/home/alan/nubank_trae/data/nubank.sqlite}"
+            echo "Backend esperado em http://${{ secrets.SSH_HOST }}:$PORT usando $DB_PATH"
+            echo "Para iniciar via PM2 (uma vez):"
+            echo "PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH pm2 start server/index.js --name nubank-api"
+            echo "Para iniciar sem PM2 (background):"
+            echo "nohup env PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &"
+            echo "Checar saúde: curl http://${{ secrets.SSH_HOST }}:$PORT/health"
