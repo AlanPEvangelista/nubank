@@ -52,7 +52,17 @@ jobs:
           source: "dist/*"
           target: "/home/alan/nubank_trae"
 
-      - name: Passo remoto (instruções backend)
+      - name: Copiar backend para o servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "server/**,package.json,package-lock.json"
+          target: "/home/alan/nubank_trae"
+
+      - name: Instalar dependências e iniciar backend
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -60,15 +70,25 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd /home/alan/nubank_trae
-            mkdir -p data
-            DB_PATH=/home/alan/nubank_trae/data/nubank.sqlite
-            PORT=3001
-            HOST=0.0.0.0
-            echo "Deploy concluído em /home/alan/nubank_trae"
-            echo "Backend esperado em http://192.168.100.117:$PORT usando $DB_PATH"
-            echo "Para iniciar via PM2 (uma vez):"
-            echo "PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH pm2 start server/index.js --name nubank-api"
-            echo "Para iniciar sem PM2 (background):"
-            echo "nohup env PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &"
-            echo "Checar saúde: curl http://192.168.100.117:$PORT/health"
+            set -e
+            APP_DIR=/home/alan/nubank_trae
+            DB_PATH=${DB_PATH:-$APP_DIR/data/nubank.sqlite}
+            PORT=${PORT:-3001}
+            HOST=${HOST:-0.0.0.0}
+            echo "[1/4] Preparando diretório de dados"
+            mkdir -p "$(dirname "$DB_PATH")"
+            echo "[2/4] Instalando dependências"
+            cd "$APP_DIR"
+            npm ci
+            echo "[3/4] Iniciando backend (PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH)"
+            if command -v pm2 >/dev/null 2>&1; then
+              if pm2 list | grep -q 'nubank-api'; then
+                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 restart nubank-api --update-env
+              else
+                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 start server/index.js --name nubank-api
+              fi
+              pm2 save || true
+            else
+              DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
+            fi
+            echo "[4/4] Backend rodando. Health: http://192.168.100.117:$PORT/health"
