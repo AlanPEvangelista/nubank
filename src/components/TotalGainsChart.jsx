@@ -9,9 +9,10 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 export default function TotalGainsChart({ data = [] }) {
   const labels = data.map(d => d.d)

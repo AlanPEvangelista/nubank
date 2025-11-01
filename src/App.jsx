@@ -6,6 +6,8 @@ import TotalGainsChart from './components/TotalGainsChart.jsx'
 import ApplicationForm from './components/ApplicationForm.jsx'
 import EarningsForm from './components/EarningsForm.jsx'
 import FilterBar from './components/FilterBar.jsx'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 function AppShell() {
   const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, statsByApp, statsTotalOverTime } = useDatabase()
@@ -102,6 +104,7 @@ function AppShell() {
 export default function App() {
   return (
     <DatabaseProvider>
+      <ToastContainer position="bottom-center" autoClose={4000} hideProgressBar={false} closeOnClick pauseOnHover />
       <AppShell />
     </DatabaseProvider>
   )

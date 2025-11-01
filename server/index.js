@@ -87,8 +87,8 @@ app.get('/applications', (req, res) => {
 
 app.post('/applications', (req, res) => {
   try {
-    const { name, startDate, initialValue, dueDate } = req.body || {}
-    if (!name || !startDate || initialValue == null || !dueDate) return bad(res, 'Campos obrigatórios')
+    const { name, startDate, initialValue, dueDate = '' } = req.body || {}
+    if (!name || !startDate || initialValue == null) return bad(res, 'Campos obrigatórios')
     run('INSERT INTO applications (name, start_date, initial_value, due_date) VALUES (?, ?, ?, ?)',
       [name, startDate, Number(initialValue), dueDate])
     const rows = selectAll('SELECT * FROM applications ORDER BY id DESC')

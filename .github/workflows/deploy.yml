@@ -50,4 +50,4 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            powershell -NoProfile -Command "Write-Host 'Deploy concluído em /home/alan/nubank_trae'"
+            echo "Deploy concluído em /home/alan/nubank_trae"
