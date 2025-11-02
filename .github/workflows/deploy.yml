@@ -62,7 +62,73 @@ jobs:
           source: "server/**,package.json,package-lock.json"
           target: "/home/alan/nubank_trae"
 
-      - name: Instalar dependências e iniciar backend
+      - name: Instalar serviços systemd (backend e frontend)
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            APP_DIR=/home/alan/nubank_trae
+            BACKEND_USER=alan
+            DB_PATH=${DB_PATH:-$APP_DIR/data/nubank.sqlite}
+            BACKEND_PORT=${PORT:-3001}
+            FRONT_PORT=${FRONT_PORT:-8082}
+            HOST=${HOST:-0.0.0.0}
+            NODE_BIN=$(command -v node || echo /usr/bin/node)
+            SERVE_BIN=$(command -v serve || echo /usr/local/bin/serve)
+            echo "[systemd] Gerando serviços com APP_DIR=$APP_DIR USER=$BACKEND_USER"
+            # Backend service
+            cat > /tmp/nubank-backend.service <<EOF
+            [Unit]
+            Description=Nubank Backend
+            After=network.target
+
+            [Service]
+            WorkingDirectory=$APP_DIR
+            Environment=DB_PATH=$DB_PATH
+            Environment=PORT=$BACKEND_PORT
+            Environment=HOST=$HOST
+            ExecStart=$NODE_BIN $APP_DIR/server/index.js
+            Restart=always
+            RestartSec=5
+            User=$BACKEND_USER
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            # Frontend service
+            if ! command -v serve >/dev/null 2>&1; then
+              echo "Instalando 'serve' global" && echo "${{ secrets.SSH_PASSWORD }}" | sudo -S npm i -g serve
+            fi
+            cat > /tmp/nubank-frontend.service <<EOF
+            [Unit]
+            Description=Nubank Frontend
+            After=network.target
+
+            [Service]
+            WorkingDirectory=$APP_DIR
+            ExecStart=$SERVE_BIN -s $APP_DIR/dist -l $FRONT_PORT --no-clipboard
+            Restart=always
+            RestartSec=5
+            User=$BACKEND_USER
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            echo "Instalando serviços em /etc/systemd/system"
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S mv /tmp/nubank-backend.service /etc/systemd/system/nubank-backend.service
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S mv /tmp/nubank-frontend.service /etc/systemd/system/nubank-frontend.service
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S systemctl daemon-reload
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S systemctl enable --now nubank-backend.service
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S systemctl enable --now nubank-frontend.service
+            echo "Serviços systemd instalados e iniciados"
+
+      - name: Instalar dependências e iniciar backend (fallback)
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -80,15 +146,22 @@ jobs:
             echo "[2/4] Instalando dependências"
             cd "$APP_DIR"
             npm ci
-            echo "[3/4] Iniciando backend (PORT=$PORT HOST=$HOST DB_PATH=$DB_PATH)"
-            if command -v pm2 >/dev/null 2>&1; then
-              if pm2 list | grep -q 'nubank-api'; then
-                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 restart nubank-api --update-env
-              else
-                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 start server/index.js --name nubank-api
-              fi
-              pm2 save || true
+            echo "[3/4] Verificando systemd e serviços"
+            if command -v systemctl >/dev/null 2>&1; then
+              echo "${{ secrets.SSH_PASSWORD }}" | sudo -S systemctl restart nubank-backend.service || true
+              echo "${{ secrets.SSH_PASSWORD }}" | sudo -S systemctl restart nubank-frontend.service || true
+              echo "[4/4] Health: http://192.168.100.117:$PORT/health"
             else
-              DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
+              echo "systemd indisponível, usando fallback PM2/nohup"
+              if command -v pm2 >/dev/null 2>&1; then
+                if pm2 list | grep -q 'nubank-api'; then
+                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 restart nubank-api --update-env
+                else
+                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 start server/index.js --name nubank-api
+                fi
+                pm2 save || true
+              else
+                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
+              fi
+              echo "[4/4] Backend rodando (fallback). Health: http://192.168.100.117:$PORT/health"
             fi
-            echo "[4/4] Backend rodando. Health: http://192.168.100.117:$PORT/health"
