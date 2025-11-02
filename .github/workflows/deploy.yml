@@ -78,7 +78,7 @@ jobs:
             FRONT_PORT=${FRONT_PORT:-8082}
             HOST=${HOST:-0.0.0.0}
             NODE_BIN=$(command -v node || echo /usr/bin/node)
-            SERVE_BIN=$(command -v serve || echo /usr/local/bin/serve)
+            VITE_BIN="$APP_DIR/node_modules/vite/bin/vite.js"
             echo "[systemd] Gerando serviços com APP_DIR=$APP_DIR USER=$BACKEND_USER"
             # Backend service
             cat > /tmp/nubank-backend.service <<EOF
@@ -100,10 +100,7 @@ jobs:
             WantedBy=multi-user.target
             EOF
 
-            # Frontend service
-            if ! command -v serve >/dev/null 2>&1; then
-              echo "Instalando 'serve' global" && echo "${{ secrets.SSH_PASSWORD }}" | sudo -S npm i -g serve
-            fi
+            # Frontend service (Vite Preview)
             cat > /tmp/nubank-frontend.service <<EOF
             [Unit]
             Description=Nubank Frontend
@@ -111,7 +108,7 @@ jobs:
 
             [Service]
             WorkingDirectory=$APP_DIR
-            ExecStart=$SERVE_BIN -s $APP_DIR/dist -l $FRONT_PORT --no-clipboard
+            ExecStart=$NODE_BIN $VITE_BIN preview --host 0.0.0.0 --port $FRONT_PORT
             Restart=always
             RestartSec=5
             User=$BACKEND_USER
@@ -163,5 +160,7 @@ jobs:
               else
                 DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
               fi
+              # Frontend fallback: Vite Preview
+              nohup $NODE_BIN $APP_DIR/node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port ${FRONT_PORT:-8082} > $APP_DIR/frontend.log 2>&1 &
               echo "[4/4] Backend rodando (fallback). Health: http://192.168.100.117:$PORT/health"
             fi
