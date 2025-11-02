@@ -142,9 +142,11 @@ body {
 }
 @media (max-width: 768px) {
   .container { padding: 12px; }
-  .grid { grid-template-columns: repeat(6, 1fr); }
-  .col-6, .col-4, .col-8 { grid-column: span 6; }
+  .grid { grid-template-columns: 1fr; }
+  .col-6, .col-4, .col-8, .col-12 { grid-column: span 1; }
   .row, .row-3 { grid-template-columns: 1fr; }
+  .card { margin-bottom: 12px; }
+  .input, .select, .btn { font-size: 16px; }
   .card-header { padding: 12px 14px; }
   .card-body { padding: 12px; }
   .hero-content { padding: 16px; }
@@ -152,4 +154,10 @@ body {
   .hero-images { grid-template-columns: 1fr; padding: 8px; }
   .hero-images img { height: 120px; }
   .chart { height: 200px; }
+}
+
+@media (max-width: 480px) {
+  .hero-images { display: none; }
+  .hero h1 { font-size: 20px; }
+  .hero-content { padding: 14px; }
 }

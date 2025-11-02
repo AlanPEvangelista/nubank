@@ -104,7 +104,7 @@ function AppShell() {
 export default function App() {
   return (
     <DatabaseProvider>
-      <ToastContainer position="bottom-center" autoClose={4000} hideProgressBar={false} closeOnClick pauseOnHover />
+      <ToastContainer position="top-center" autoClose={3500} hideProgressBar={false} closeOnClick pauseOnHover limit={3} />
       <AppShell />
     </DatabaseProvider>
   )
