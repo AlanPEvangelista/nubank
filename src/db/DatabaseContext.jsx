@@ -1,26 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '../auth/AuthContext.jsx'
 
 const DbCtx = createContext(null)
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
-async function apiGet(path) {
-  const r = await fetch(`${BASE_URL}${path}`)
-  const j = await r.json()
-  if (!j.ok) throw new Error(j.error || 'Erro na API')
-  return j.data
-}
-
-async function apiPost(path, body) {
-  const r = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  const j = await r.json()
-  if (!j.ok) throw new Error(j.error || 'Erro na API')
-  return j.data
-}
 
 export function DatabaseProvider({ children }) {
   const [ready, setReady] = useState(false)
@@ -28,6 +11,27 @@ export function DatabaseProvider({ children }) {
   const [earningsByApp, setEarningsByApp] = useState({})
   const [statsByApp, setStatsByApp] = useState([])
   const [statsTotalOverTime, setStatsTotalOverTime] = useState([])
+  const { token } = useAuth()
+
+  const apiGet = async (path) => {
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const r = await fetch(`${BASE_URL}${path}`, { headers })
+    const j = await r.json()
+    if (!j.ok) throw new Error(j.error || 'Erro na API')
+    return j.data
+  }
+
+  const apiPost = async (path, body) => {
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const r = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST', headers, body: JSON.stringify(body),
+    })
+    const j = await r.json()
+    if (!j.ok) throw new Error(j.error || 'Erro na API')
+    return j.data
+  }
 
   useEffect(() => {
     (async () => {
@@ -40,7 +44,7 @@ export function DatabaseProvider({ children }) {
         console.error('API indisponível', e)
       }
     })()
-  }, [])
+  }, [token])
 
   const addApplication = async ({ name, startDate, initialValue, dueDate }) => {
     const created = await apiPost('/applications', { name, startDate, initialValue, dueDate })

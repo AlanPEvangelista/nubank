@@ -91,6 +91,9 @@ jobs:
             Environment=DB_PATH=$DB_PATH
             Environment=PORT=$BACKEND_PORT
             Environment=HOST=$HOST
+            Environment=AUTH_PIN=${{ secrets.AUTH_PIN || '1234' }}
+            Environment=JWT_SECRET=${{ secrets.JWT_SECRET || 'change-me-secret' }}
+            Environment=JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN || '7d' }}
             ExecStart=$NODE_BIN $APP_DIR/server/index.js
             Restart=always
             RestartSec=5
@@ -152,13 +155,13 @@ jobs:
               echo "systemd indisponível, usando fallback PM2/nohup"
               if command -v pm2 >/dev/null 2>&1; then
                 if pm2 list | grep -q 'nubank-api'; then
-                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 restart nubank-api --update-env
+                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" AUTH_PIN="${{ secrets.AUTH_PIN || '1234' }}" JWT_SECRET="${{ secrets.JWT_SECRET || 'change-me-secret' }}" JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN || '7d' }}" pm2 restart nubank-api --update-env
                 else
-                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" pm2 start server/index.js --name nubank-api
+                  DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" AUTH_PIN="${{ secrets.AUTH_PIN || '1234' }}" JWT_SECRET="${{ secrets.JWT_SECRET || 'change-me-secret' }}" JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN || '7d' }}" pm2 start server/index.js --name nubank-api
                 fi
                 pm2 save || true
               else
-                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
+                DB_PATH="$DB_PATH" PORT="$PORT" HOST="$HOST" AUTH_PIN="${{ secrets.AUTH_PIN || '1234' }}" JWT_SECRET="${{ secrets.JWT_SECRET || 'change-me-secret' }}" JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN || '7d' }}" nohup node server/index.js >/home/alan/nubank_trae/backend.log 2>&1 &
               fi
               # Frontend fallback: Vite Preview
               nohup $NODE_BIN $APP_DIR/node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port ${FRONT_PORT:-8082} > $APP_DIR/frontend.log 2>&1 &

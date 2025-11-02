@@ -8,8 +8,11 @@ import EarningsForm from './components/EarningsForm.jsx'
 import FilterBar from './components/FilterBar.jsx'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
+import Login from './components/Login.jsx'
 
 function AppShell() {
+  const { logout } = useAuth()
   const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, statsByApp, statsTotalOverTime } = useDatabase()
   const [range, setRange] = useState(() => {
     const to = new Date()
@@ -34,8 +37,9 @@ function AppShell() {
         <div className="hero-content">
           <h1>Controle de Aplicações</h1>
           <p>Cadastre aplicações, lançamentos de rendimentos e visualize ganhos por período.</p>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span className="badge">SQLite Local + Gráficos</span>
+            <button className="btn btn-secondary" style={{ padding: '6px 10px' }} onClick={logout}>Sair</button>
           </div>
           {!ready && (
             <div style={{ marginTop: 10, opacity: 0.9 }}>
@@ -101,11 +105,21 @@ function AppShell() {
   )
 }
 
-export default function App() {
+function Root() {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return <Login />
   return (
     <DatabaseProvider>
-      <ToastContainer position="top-center" autoClose={3500} hideProgressBar={false} closeOnClick pauseOnHover limit={3} />
       <AppShell />
     </DatabaseProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastContainer position="top-center" autoClose={3500} hideProgressBar={false} closeOnClick pauseOnHover limit={3} />
+      <Root />
+    </AuthProvider>
   )
 }
