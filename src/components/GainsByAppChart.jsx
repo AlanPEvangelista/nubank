@@ -29,6 +29,7 @@ export default function GainsByAppChart({ data = [], applications = [] }) {
   }
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top' },
       title: { display: false },
@@ -37,5 +38,9 @@ export default function GainsByAppChart({ data = [], applications = [] }) {
       y: { beginAtZero: true },
     },
   }
-  return <Bar data={chartData} options={options} />
+  return (
+    <div className="chart">
+      <Bar data={chartData} options={options} />
+    </div>
+  )
 }

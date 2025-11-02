@@ -32,6 +32,7 @@ export default function TotalGainsChart({ data = [] }) {
   }
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top' },
       title: { display: false },
@@ -40,5 +41,9 @@ export default function TotalGainsChart({ data = [] }) {
       y: { beginAtZero: true },
     },
   }
-  return <Line data={chartData} options={options} />
+  return (
+    <div className="chart">
+      <Line data={chartData} options={options} />
+    </div>
+  )
 }

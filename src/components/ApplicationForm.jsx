@@ -54,7 +54,8 @@ export default function ApplicationForm() {
 
       <div style={{ marginTop: 16 }}>
         <div className="section-title">Aplicações cadastradas</div>
-        <table className="table">
+        <div className="table-wrap">
+          <table className="table">
           <thead>
             <tr>
               <th>Nome</th>
@@ -76,7 +77,8 @@ export default function ApplicationForm() {
               <tr><td colSpan={4} style={{ opacity: 0.7 }}>Nenhuma aplicação cadastrada</td></tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   )
