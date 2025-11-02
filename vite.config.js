@@ -12,5 +12,6 @@ export default defineConfig({
   preview: {
     host: true,
     port: 8082,
+    allowedHosts: ['casaalan.ddns.net'],
   },
 })
