@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename)
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'nubank.sqlite')
 const PORT = process.env.PORT || 3001
-const HOST = process.env.HOST || '0.0.0.0'
+const HOST = (process.env.HOST || '0.0.0.0').trim()
 const AUTH_PIN = (process.env.AUTH_PIN || '1234').toString()
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-secret'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'

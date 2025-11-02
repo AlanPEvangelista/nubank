@@ -11,7 +11,7 @@ export function DatabaseProvider({ children }) {
   const [earningsByApp, setEarningsByApp] = useState({})
   const [statsByApp, setStatsByApp] = useState([])
   const [statsTotalOverTime, setStatsTotalOverTime] = useState([])
-  const { token } = useAuth()
+  const { token, isAuthenticated } = useAuth()
 
   const apiGet = async (path) => {
     const headers = {}
@@ -34,6 +34,12 @@ export function DatabaseProvider({ children }) {
   }
 
   useEffect(() => {
+    // Only make API calls if user is authenticated
+    if (!isAuthenticated) {
+      setReady(false)
+      return
+    }
+
     (async () => {
       try {
         await apiGet('/health')
@@ -42,9 +48,10 @@ export function DatabaseProvider({ children }) {
         setApps(a)
       } catch (e) {
         console.error('API indisponível', e)
+        setReady(false)
       }
     })()
-  }, [token])
+  }, [token, isAuthenticated])
 
   const addApplication = async ({ name, startDate, initialValue, dueDate }) => {
     const created = await apiPost('/applications', { name, startDate, initialValue, dueDate })
