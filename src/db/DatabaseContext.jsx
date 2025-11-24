@@ -1,144 +1,120 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import initSqlJs from 'sql.js'
-import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react'
 
 const DbCtx = createContext(null)
 
-function u8FromBase64(b64) {
-  const str = atob(b64)
-  const arr = new Uint8Array(str.length)
-  for (let i = 0; i < str.length; i++) arr[i] = str.charCodeAt(i)
-  return arr
-}
-function base64FromU8(u8) {
-  let binary = ''
-  for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i])
-  return btoa(binary)
+// Função auxiliar para fazer chamadas à API
+const callApi = async (path, options = {}) => {
+  const response = await fetch(path, options)
+  if (!response.ok) throw new Error(`Erro API: ${response.statusText}`)
+  const json = await response.json()
+  if (!json.ok) throw new Error(json.error || 'Erro desconhecido na API')
+  return json.data // Retorna apenas o array de dados (Macbook, Carro, etc.)
 }
 
 export function DatabaseProvider({ children }) {
-  const [ready, setReady] = useState(false)
-  const dbRef = useRef(null)
-  const SQLRef = useRef(null)
+  const [ready] = useState(true) 
+  const [refreshKey, setRefreshKey] = useState(0)
+  
+  const triggerRefresh = () => setRefreshKey(prev => prev + 1)
 
-  useEffect(() => {
-    (async () => {
-      const SQL = await initSqlJs({ locateFile: () => wasmUrl })
-      SQLRef.current = SQL
-      let db
-      const saved = localStorage.getItem('nubank_db')
-      if (saved) {
-        db = new SQL.Database(u8FromBase64(saved))
-      } else {
-        db = new SQL.Database()
-        db.run(`CREATE TABLE IF NOT EXISTS applications (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          start_date TEXT NOT NULL,
-          initial_value REAL NOT NULL,
-          due_date TEXT NOT NULL
-        );`)
-        db.run(`CREATE TABLE IF NOT EXISTS earnings (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          application_id INTEGER NOT NULL,
-          date TEXT NOT NULL,
-          gross REAL NOT NULL,
-          net REAL NOT NULL,
-          FOREIGN KEY(application_id) REFERENCES applications(id) ON DELETE CASCADE
-        );`)
-        const data = db.export()
-        localStorage.setItem('nubank_db', base64FromU8(data))
-      }
-      dbRef.current = db
-      setReady(true)
-    })()
-  }, [])
+  const api = useMemo(() => {
+    // Funções de Leitura (GET)
+    const listApplications = async () => callApi('/applications')
+    
+    const getGainsByApplication = async (from, to) => {
+      // Converte datas para string ISO compatível com o backend
+      return callApi(`/stats/gains-by-application?from=${from.toISOString()}&to=${to.toISOString()}`)
+    }
+    
+    const getTotalGainsOverTime = async (from, to) => {
+      return callApi(`/stats/total-over-time?from=${from.toISOString()}&to=${to.toISOString()}`)
+    }
 
-  const api = useMemo(() => {
-    const ensure = () => {
-      if (!dbRef.current) throw new Error('DB não inicializado')
-      return dbRef.current
-    }
-    const persist = () => {
-      const data = ensure().export()
-      localStorage.setItem('nubank_db', base64FromU8(data))
-    }
-    const selectAll = (sql, params = []) => {
-      const db = ensure()
-      const stmt = db.prepare(sql)
-      stmt.bind(params)
-      const rows = []
-      while (stmt.step()) rows.push(stmt.getAsObject())
-      stmt.free()
-      return rows
-    }
-    const run = (sql, params = []) => {
-      const db = ensure()
-      const stmt = db.prepare(sql)
-      stmt.bind(params)
-      stmt.step()
-      stmt.free()
-      persist()
-    }
-    const addApplication = ({ name, startDate, initialValue, dueDate }) => {
-      run(
-        'INSERT INTO applications (name, start_date, initial_value, due_date) VALUES (?, ?, ?, ?)',
-        [name, startDate, Number(initialValue), dueDate]
-      )
-    }
-    const listApplications = () => selectAll('SELECT * FROM applications ORDER BY id DESC')
-    const addEarning = ({ applicationId, date, gross, net }) => {
-      run(
-        'INSERT INTO earnings (application_id, date, gross, net) VALUES (?, ?, ?, ?)',
-        [Number(applicationId), date, Number(gross), Number(net)]
-      )
-    }
-    const listEarningsByApplication = (applicationId, from, to) => {
-      const f = from ? new Date(from).toISOString().slice(0, 10) : '0000-01-01'
-      const t = to ? new Date(to).toISOString().slice(0, 10) : '9999-12-31'
-      return selectAll(
-        'SELECT * FROM earnings WHERE application_id = ? AND date BETWEEN ? AND ? ORDER BY date DESC',
-        [Number(applicationId), f, t]
-      )
-    }
-    const getGainsByApplication = (from, to) => {
-      const f = new Date(from).toISOString().slice(0, 10)
-      const t = new Date(to).toISOString().slice(0, 10)
-      return selectAll(
-        `SELECT a.id as application_id, a.name as name, COALESCE(SUM(e.net), 0) as net_sum
-         FROM applications a
-         LEFT JOIN earnings e ON e.application_id = a.id AND e.date BETWEEN ? AND ?
-         GROUP BY a.id, a.name
-         ORDER BY a.name ASC`,
-        [f, t]
-      )
-    }
-    const getTotalGainsOverTime = (from, to) => {
-      const f = new Date(from).toISOString().slice(0, 10)
-      const t = new Date(to).toISOString().slice(0, 10)
-      return selectAll(
-        `SELECT date as d, COALESCE(SUM(net), 0) as net_sum
-         FROM earnings
-         WHERE date BETWEEN ? AND ?
-         GROUP BY date
-         ORDER BY date ASC`,
-        [f, t]
-      )
-    }
-    return {
-      ready,
-      addApplication,
-      listApplications,
-      addEarning,
-      listEarningsByApplication,
-      getGainsByApplication,
-      getTotalGainsOverTime,
-    }
-  }, [ready])
+    // Funções de Escrita (POST)
+    const addApplication = async ({ name, startDate, initialValue, dueDate }) => {
+      await callApi('/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, startDate, initialValue, dueDate }),
+      })
+      triggerRefresh()
+    }
+    
+    const addEarning = async ({ applicationId, date, gross, net }) => {
+      await callApi('/earnings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, date, gross, net }),
+      })
+      triggerRefresh()
+    }
 
-  return <DbCtx.Provider value={api}>{children}</DbCtx.Provider>
+    return {
+      ready,
+      refreshKey,
+      listApplications,
+      addApplication,
+      addEarning,
+      getGainsByApplication,
+      getTotalGainsOverTime,
+    }
+  }, [ready, refreshKey])
+
+  return <DbCtx.Provider value={api}>{children}</DbCtx.Provider>
 }
 
 export function useDatabase() {
-  return useContext(DbCtx)
+  const api = useContext(DbCtx)
+  
+  // Desconstrói as funções assíncronas para uso interno
+  const { listApplications: _listApplications, getGainsByApplication: _getGainsByApplication, getTotalGainsOverTime: _getTotalGainsOverTime, ...rest } = api
+
+  // Adiciona estados para as listas que eram síncronas (o AppShell precisa delas)
+  const [apps, setApps] = useState([])
+  const [gainsByApp, setGainsByApp] = useState([])
+  const [totalGains, setTotalGains] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  // useEffect para buscar os dados sempre que a aplicação precisar de refresh
+  useEffect(() => {
+    if (api.ready) {
+      const fetchData = async () => {
+        setLoading(true)
+        try {
+          // 1. Define o range de datas padrão para busca (últimos 30 dias)
+          const defaultTo = new Date();
+          const defaultFrom = new Date(defaultTo.getTime() - 30 * 24 * 60 * 60 * 1000);
+            
+          // 2. Busca de TODOS os dados de forma concorrente
+          const [fetchedApps, fetchedGainsByApp, fetchedTotalGains] = await Promise.all([
+            _listApplications(),
+            _getGainsByApplication(defaultFrom, defaultTo),
+            _getTotalGainsOverTime(defaultFrom, defaultTo),
+          ]);
+          
+          // 3. Atualização dos estados
+          setApps(fetchedApps)
+          setGainsByApp(fetchedGainsByApp)
+          setTotalGains(fetchedTotalGains)
+          
+        } catch (e) {
+          console.error("Erro ao buscar dados da API:", e);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchData();
+    }
+  }, [api.ready, api.refreshKey])
+
+  // O retorno do hook precisa ser ajustado para ser compatível com AppShell
+  return {
+    ready: api.ready,
+    loading: loading,
+    // Retorna os estados preenchidos, atendendo a chamada síncrona do AppShell
+    listApplications: () => apps,
+    getGainsByApplication: () => gainsByApp,
+    getTotalGainsOverTime: () => totalGains,
+    ...rest 
+  }
 }
