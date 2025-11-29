@@ -1,17 +1,59 @@
 import React, { useState } from 'react'
+import { toast } from 'react-toastify'
 import { useDatabase } from '../db/DatabaseContext.jsx'
 
 export default function ApplicationForm() {
-  const { ready, addApplication, listApplications } = useDatabase()
+  const { ready, addApplication, updateApplication, deleteApplication, listApplications } = useDatabase()
   const [form, setForm] = useState({ name: '', startDate: '', initialValue: '', dueDate: '' })
+  const [editingId, setEditingId] = useState(null)
   const apps = ready ? listApplications() : []
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     if (!ready) return
-    if (!form.name || !form.startDate || !form.initialValue || !form.dueDate) return
-    addApplication(form)
+    if (!form.name || !form.startDate || !form.initialValue) {
+      toast.warn('Preencha Nome, Data de início e Valor inicial')
+      return
+    }
+    try {
+      if (editingId) {
+        await updateApplication({ id: editingId, ...form })
+        toast.success('Aplicação atualizada')
+      } else {
+        await addApplication(form)
+        toast.success('Aplicação cadastrada')
+      }
+      setForm({ name: '', startDate: '', initialValue: '', dueDate: '' })
+      setEditingId(null)
+    } catch (err) {
+      toast.error(err?.message || 'Erro ao salvar aplicação')
+    }
+  }
+
+  const startEdit = (a) => {
+    setForm({
+      name: a.name,
+      startDate: a.start_date,
+      initialValue: String(a.initial_value),
+      dueDate: a.due_date || ''
+    })
+    setEditingId(a.id)
+  }
+
+  const cancelEdit = () => {
     setForm({ name: '', startDate: '', initialValue: '', dueDate: '' })
+    setEditingId(null)
+  }
+
+  const removeApp = async (id) => {
+    try {
+      if (!window.confirm('Tem certeza que deseja excluir esta aplicação?')) return
+      await deleteApplication(id)
+      toast.success('Aplicação excluída')
+      if (editingId === id) cancelEdit()
+    } catch (err) {
+      toast.error(err?.message || 'Erro ao excluir aplicação')
+    }
   }
 
   return (
@@ -37,8 +79,11 @@ export default function ApplicationForm() {
             <input className="input" disabled={!ready} type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} />
           </div>
         </div>
-        <div style={{ marginTop: 12 }}>
-          <button className="btn" disabled={!ready} type="submit">Cadastrar aplicação</button>
+        <div style={{ marginTop: 12, display: 'flex', gap: 6 }}>
+          <button className="btn btn-sm" disabled={!ready} type="submit">{editingId ? 'Salvar alterações' : 'Cadastrar aplicação'}</button>
+          {editingId && (
+            <button className="btn btn-secondary btn-sm" type="button" onClick={cancelEdit}>Cancelar edição</button>
+          )}
         </div>
       </form>
 
@@ -51,6 +96,7 @@ export default function ApplicationForm() {
               <th>Início</th>
               <th>Inicial</th>
               <th>Vencimento</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -60,6 +106,10 @@ export default function ApplicationForm() {
                 <td>{a.start_date}</td>
                 <td>R$ {Number(a.initial_value).toFixed(2)}</td>
                 <td>{a.due_date}</td>
+                <td>
+                  <button className="btn btn-sm" type="button" onClick={() => startEdit(a)} style={{ marginRight: 6 }}>Editar</button>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => removeApp(a.id)}>Excluir</button>
+                </td>
               </tr>
             ))}
             {apps.length === 0 && (

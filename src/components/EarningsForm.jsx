@@ -1,24 +1,86 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useDatabase } from '../db/DatabaseContext.jsx'
+import { toast } from 'react-toastify'
 
 export default function EarningsForm() {
-  const { ready, addEarning, listApplications, listEarningsByApplication } = useDatabase()
+  const { ready, addEarning, updateEarning, deleteEarning, listApplications, listEarningsByApplication } = useDatabase()
   const apps = ready ? listApplications() : []
   const [form, setForm] = useState({ applicationId: '', date: '', gross: '', net: '' })
   const [selectedApp, setSelectedApp] = useState('')
+  const [editingId, setEditingId] = useState(null)
 
-  const earnings = useMemo(() => {
-    if (!ready || !selectedApp) return []
-    return listEarningsByApplication(selectedApp)
-  }, [selectedApp, ready])
+  const [earnings, setEarnings] = useState([])
 
-  const onSubmit = (e) => {
+  useEffect(() => {
+    if (!ready || !selectedApp) {
+      setEarnings([])
+      return
+    }
+    listEarningsByApplication(selectedApp)
+      .then(data => setEarnings(Array.isArray(data) ? data : []))
+      .catch(err => {
+        console.error("Erro ao buscar rendimentos:", err)
+        toast.error("Erro ao carregar rendimentos")
+        setEarnings([])
+      })
+  }, [selectedApp, ready, listEarningsByApplication])
+
+  const onSubmit = async (e) => {
     e.preventDefault()
-    if (!ready || !form.applicationId || !form.date || !form.gross || !form.net) return
-    addEarning(form)
-    setSelectedApp(form.applicationId)
-    setForm({ applicationId: form.applicationId, date: '', gross: '', net: '' })
+    if (!ready) return
+    if (!form.applicationId || !form.date || !form.gross || !form.net) {
+      toast.warn('Preencha Aplicação, Data, Bruto e Líquido')
+      return
+    }
+    try {
+      if (editingId) {
+        await updateEarning({ id: editingId, ...form })
+        toast.success('Rendimento atualizado')
+      } else {
+        await addEarning(form)
+        toast.success('Rendimento lançado')
+      }
+      setSelectedApp(form.applicationId)
+      setForm({ applicationId: form.applicationId, date: '', gross: '', net: '' })
+      setEditingId(null)
+    } catch (err) {
+      toast.error(err?.message || 'Erro ao salvar rendimento')
+    }
   }
+
+  const startEdit = (e) => {
+    setForm({
+      applicationId: String(e.application_id),
+      date: e.date,
+      gross: String(e.gross),
+      net: String(e.net),
+    })
+    setSelectedApp(String(e.application_id))
+    setEditingId(e.id)
+  }
+
+  const cancelEdit = () => {
+    setForm({ applicationId: selectedApp || '', date: '', gross: '', net: '' })
+    setEditingId(null)
+  }
+
+  const removeEarning = async (id) => {
+    try {
+      if (!window.confirm('Tem certeza que deseja excluir este lançamento?')) return
+      await deleteEarning(id)
+      toast.success('Rendimento excluído')
+      if (editingId === id) cancelEdit()
+    } catch (err) {
+      toast.error(err?.message || 'Erro ao excluir rendimento')
+    }
+  }
+
+  useEffect(() => {
+    if (selectedApp && !apps.some(a => String(a.id) === String(selectedApp))) {
+      setSelectedApp('')
+      if (editingId) cancelEdit()
+    }
+  }, [apps, selectedApp])
 
   return (
     <div>
@@ -45,8 +107,11 @@ export default function EarningsForm() {
             <label>Rendimento líquido</label>
             <input className="input" disabled={!ready} type="number" step="0.01" value={form.net} onChange={e => setForm({ ...form, net: e.target.value })} />
           </div>
-          <div style={{ alignSelf: 'end' }}>
-            <button className="btn" disabled={!ready} type="submit">Lançar</button>
+          <div style={{ alignSelf: 'end', display: 'flex', gap: 6 }}>
+            <button className="btn btn-sm" disabled={!ready} type="submit">{editingId ? 'Salvar alterações' : 'Lançar'}</button>
+            {editingId && (
+              <button className="btn btn-secondary btn-sm" type="button" onClick={cancelEdit}>Cancelar edição</button>
+            )}
           </div>
         </div>
       </form>
@@ -65,6 +130,7 @@ export default function EarningsForm() {
               <th>Data</th>
               <th>Bruto</th>
               <th>Líquido</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -73,6 +139,10 @@ export default function EarningsForm() {
                 <td>{e.date}</td>
                 <td>R$ {Number(e.gross).toFixed(2)}</td>
                 <td>R$ {Number(e.net).toFixed(2)}</td>
+                <td>
+                  <button className="btn btn-sm" type="button" onClick={() => startEdit(e)} style={{ marginRight: 6 }}>Editar</button>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => removeEarning(e.id)}>Excluir</button>
+                </td>
               </tr>
             ))}
             {earnings.length === 0 && (
