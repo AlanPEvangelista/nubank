@@ -1,16 +1,21 @@
 import React, { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { toast } from 'react-toastify'
 
 export default function Login() {
   const { login, register } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (isLogin) {
       await login(form.email, form.password)
     } else {
+      if (form.password !== form.confirmPassword) {
+        toast.error('As senhas não conferem')
+        return
+      }
       const success = await register(form.name, form.email, form.password)
       if (success) setIsLogin(true)
     }
@@ -61,6 +66,18 @@ export default function Login() {
                 required 
               />
             </div>
+            {!isLogin && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 4 }}>Confirme a Senha</label>
+                <input 
+                  className="input" 
+                  type="password"
+                  value={form.confirmPassword} 
+                  onChange={e => setForm({...form, confirmPassword: e.target.value})} 
+                  required 
+                />
+              </div>
+            )}
             <button className="btn" type="submit">
               {isLogin ? 'Entrar' : 'Cadastrar'}
             </button>
