@@ -101,9 +101,19 @@ body {
 /* Botões pequenos para ações inline */
 .btn.btn-sm {
   width: auto;
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 4px 8px;
+  font-size: 12px;
   border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.actions-inline {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .table { width: 100%; border-collapse: collapse; }

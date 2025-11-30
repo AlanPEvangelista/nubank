@@ -107,8 +107,10 @@ export default function ApplicationForm() {
                 <td>R$ {Number(a.initial_value).toFixed(2)}</td>
                 <td>{a.due_date}</td>
                 <td>
-                  <button className="btn btn-sm" type="button" onClick={() => startEdit(a)} style={{ marginRight: 6 }}>Editar</button>
-                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => removeApp(a.id)}>Excluir</button>
+                  <div className="actions-inline">
+                    <button className="btn btn-sm" type="button" onClick={() => startEdit(a)}>Editar</button>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => removeApp(a.id)}>Excluir</button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -293,7 +293,7 @@ app.put('/earnings/:id', authenticateToken, (req, res) => {
     if (!applicationId || !date || gross == null || net == null) return bad(res, 'Campos obrigatórios')
     
     const earning = selectAll("SELECT e.*, a.user_id FROM earnings e JOIN applications a ON a.id = e.application_id WHERE e.id = ?", [id])[0]
-    if (!earning) return bad(res, 'Rendimento não encontrado', 404)
+    if (!earning) return bad(res, 'Lançamento não encontrado', 404)
     if (earning.user_id !== req.user.id && req.user.role !== 'admin') return bad(res, 'Acesso negado', 403)
 
     const targetApp = selectAll("SELECT * FROM applications WHERE id = ?", [applicationId])[0]
@@ -313,7 +313,7 @@ app.delete('/earnings/:id', authenticateToken, (req, res) => {
     if (!id) return bad(res, 'ID inválido')
     
     const earning = selectAll("SELECT e.*, a.user_id FROM earnings e JOIN applications a ON a.id = e.application_id WHERE e.id = ?", [id])[0]
-    if (!earning) return bad(res, 'Rendimento não encontrado', 404)
+    if (!earning) return bad(res, 'Lançamento não encontrado', 404)
     if (earning.user_id !== req.user.id && req.user.role !== 'admin') return bad(res, 'Acesso negado', 403)
 
     run('DELETE FROM earnings WHERE id = ?', [id])
@@ -323,42 +323,64 @@ app.delete('/earnings/:id', authenticateToken, (req, res) => {
 
 app.get('/stats/gains-by-application', authenticateToken, (req, res) => {
   try {
-    const { from, to } = req.query
+    const { from, to, applicationId } = req.query
     const f = from || '0000-01-01'
     const t = to || '9999-12-31'
     
     let userId = req.user.id
     if (req.user.role === 'admin' && req.query.userId) userId = req.query.userId
 
-    const rows = selectAll(`
-      SELECT a.id as application_id, a.name as name, COALESCE(SUM(e.net), 0) as net_sum
+    let sql = `
+      SELECT a.id as application_id, a.name as name, 
+      COALESCE((
+        SELECT net FROM earnings e2 
+        WHERE e2.application_id = a.id 
+          AND e2.date BETWEEN ? AND ? 
+        ORDER BY e2.date DESC, e2.id DESC 
+        LIMIT 1
+      ), 0) as net_sum
       FROM applications a
-      LEFT JOIN earnings e ON e.application_id = a.id AND e.date BETWEEN ? AND ?
       WHERE a.user_id = ?
-      GROUP BY a.id, a.name 
-      ORDER BY a.name ASC
-    `, [f, t, userId])
+    `
+    const params = [f, t, userId]
+
+    if (applicationId) {
+      sql += ' AND a.id = ?'
+      params.push(Number(applicationId))
+    }
+
+    sql += ' ORDER BY a.name ASC'
+
+    const rows = selectAll(sql, params)
     ok(res, rows)
   } catch (e) { bad(res, e.message, 500) }
 })
 
 app.get('/stats/total-over-time', authenticateToken, (req, res) => {
   try {
-    const { from, to } = req.query
+    const { from, to, applicationId } = req.query
     const f = from || '0000-01-01'
     const t = to || '9999-12-31'
 
     let userId = req.user.id
     if (req.user.role === 'admin' && req.query.userId) userId = req.query.userId
 
-    const rows = selectAll(`
+    let sql = `
       SELECT date as d, COALESCE(SUM(net), 0) as net_sum
       FROM earnings
       JOIN applications a ON a.id = earnings.application_id
       WHERE date BETWEEN ? AND ? AND a.user_id = ?
-      GROUP BY date
-      ORDER BY date ASC
-    `, [f, t, userId])
+    `
+    const params = [f, t, userId]
+
+    if (applicationId) {
+      sql += ' AND a.id = ?'
+      params.push(Number(applicationId))
+    }
+
+    sql += ' GROUP BY date ORDER BY date ASC'
+
+    const rows = selectAll(sql, params)
     ok(res, rows)
   } catch (e) { bad(res, e.message, 500) }
 })

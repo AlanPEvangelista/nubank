@@ -15,9 +15,9 @@ import {
 // ADICIONEI O 'Filler' AQUI TAMBÉM V
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
-export default function TotalGainsChart({ data = [] }) {
+export default function TotalGainsChart({ data = [], initialValue = 0, options: customOptions = {} }) {
   const labels = data.map(d => d.d)
-  const values = data.map(d => Number(d.net_sum))
+  const values = data.map(d => Number(d.net_sum) - Number(initialValue))
   const chartData = {
     labels,
     datasets: [
@@ -36,10 +36,23 @@ export default function TotalGainsChart({ data = [] }) {
     plugins: {
       legend: { position: 'top' },
       title: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            let label = context.dataset.label || ''
+            if (label) label += ': '
+            if (context.parsed.y !== null) {
+              label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y)
+            }
+            return label
+          }
+        }
+      }
     },
     scales: {
       y: { beginAtZero: true },
     },
+    ...customOptions
   }
   return <Line data={chartData} options={options} />
 }

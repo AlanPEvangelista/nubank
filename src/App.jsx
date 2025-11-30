@@ -5,14 +5,16 @@ import { ToastContainer } from 'react-toastify'
 import { format, subDays } from 'date-fns'
 import GainsByAppChart from './components/GainsByAppChart.jsx'
 import TotalGainsChart from './components/TotalGainsChart.jsx'
+import YieldChart from './components/YieldChart.jsx'
 import ApplicationForm from './components/ApplicationForm.jsx'
 import EarningsForm from './components/EarningsForm.jsx'
 import FilterBar from './components/FilterBar.jsx'
 import Login from './pages/Login.jsx'
+import FullScreenModal from './components/FullScreenModal.jsx'
 
 function AppShell() {
   const { user, logout } = useAuth()
-  const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, setAdminUserId } = useDatabase()
+  const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, listEarningsByApplication, setAdminUserId } = useDatabase()
   const [range, setRange] = useState(() => {
     const to = new Date()
     const from = subDays(to, 30)
@@ -22,6 +24,10 @@ function AppShell() {
   // Admin state
   const [adminUsers, setAdminUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState('')
+  const [selectedAppId, setSelectedAppId] = useState('')
+  
+  // Modal state
+  const [fullScreenChart, setFullScreenChart] = useState(null) // 'gainsByApp', 'totalGains', 'yield'
 
   // Load users if admin
   useEffect(() => {
@@ -41,8 +47,28 @@ function AppShell() {
   }, [selectedUser, setAdminUserId])
 
   const apps = ready ? listApplications() : []
-  const byApp = useMemo(() => (ready ? getGainsByApplication(range.from, range.to) : []), [range, ready, selectedUser])
-  const totalOverTime = useMemo(() => (ready ? getTotalGainsOverTime(range.from, range.to) : []), [range, ready, selectedUser])
+  const [byApp, setByApp] = useState([])
+  const [totalOverTime, setTotalOverTime] = useState([])
+  const [yieldData, setYieldData] = useState([])
+  
+  const selectedApp = useMemo(() => {
+      return apps.find(a => String(a.id) === String(selectedAppId))
+  }, [apps, selectedAppId])
+
+  useEffect(() => {
+    if (ready) {
+      getGainsByApplication(range.from, range.to, selectedAppId).then(setByApp).catch(console.error)
+      getTotalGainsOverTime(range.from, range.to, selectedAppId).then(setTotalOverTime).catch(console.error)
+      
+      if (selectedAppId) {
+          listEarningsByApplication(selectedAppId, range.from, range.to)
+            .then(data => setYieldData(Array.isArray(data) ? data : []))
+            .catch(console.error)
+      } else {
+          setYieldData([])
+      }
+    }
+  }, [ready, range, selectedAppId, getGainsByApplication, getTotalGainsOverTime, listEarningsByApplication])
 
   if (!user) return <Login />
 
@@ -90,7 +116,7 @@ function AppShell() {
       </section>
 
       <div className="grid">
-        <div className="card col-6 fullscreen-mobile">
+        <div className="card col-6">
           <div className="card-header">
             <span className="card-title">Cadastro de Aplicação</span>
           </div>
@@ -99,42 +125,107 @@ function AppShell() {
           </div>
         </div>
 
-        <div className="card col-6 fullscreen-mobile">
-          <div className="card-header">
-            <span className="card-title">Lançamento de Rendimentos</span>
-          </div>
-          <div className="card-body">
-            <EarningsForm />
-          </div>
-        </div>
-
-        <div className="card col-12">
-          <div className="card-header">
-            <span className="card-title">Filtros de Período</span>
-          </div>
-          <div className="card-body">
-            <FilterBar value={range} onChange={setRange} />
-          </div>
-        </div>
-
         <div className="card col-6">
           <div className="card-header">
-            <span className="card-title">Ganhos por Aplicação</span>
+            <span className="card-title" style={{ color: '#ef4444', fontWeight: 'bold' }}>Lançamento</span>
           </div>
           <div className="card-body">
-            <GainsByAppChart data={byApp} applications={apps} />
+            <EarningsForm onAppSelect={setSelectedAppId} />
           </div>
         </div>
 
-        <div className="card col-6">
-          <div className="card-header">
-            <span className="card-title">Ganhos Totais por Dia</span>
+        {selectedAppId ? (
+          <>
+            <div className="card col-12">
+              <div className="card-header">
+                <span className="card-title" style={{ color: '#ef4444', fontWeight: 'bold', width: '100%', textAlign: 'center', display: 'block' }}>Filtros de Período</span>
+              </div>
+              <div className="card-body">
+                <FilterBar value={range} onChange={setRange} />
+              </div>
+            </div>
+
+            <div className="card col-6">
+              <div className="card-header">
+                <span className="card-title">Valor líquido por aplicação</span>
+                <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setFullScreenChart('gainsByApp')}>🔍</button>
+              </div>
+              <div className="card-body">
+                <GainsByAppChart data={byApp} applications={apps} />
+              </div>
+            </div>
+
+            <div className="card col-6">
+              <div className="card-header">
+                <span className="card-title">Ganhos Totais por Dia</span>
+                <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setFullScreenChart('totalGains')}>🔍</button>
+              </div>
+              <div className="card-body">
+                <TotalGainsChart data={totalOverTime} initialValue={selectedApp ? selectedApp.initial_value : 0} />
+              </div>
+            </div>
+
+            <div className="card col-12">
+              <div className="card-header">
+                <span className="card-title">Evolução do Rendimento (vs. Inicial)</span>
+                <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setFullScreenChart('yield')}>🔍</button>
+              </div>
+              <div className="card-body">
+                <YieldChart 
+                  key={selectedAppId} 
+                  data={yieldData} 
+                  initialValue={selectedApp ? selectedApp.initial_value : 0} 
+                  appName={selectedApp ? selectedApp.name : ''}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="card col-12" style={{ textAlign: 'center', padding: 40, opacity: 0.6 }}>
+            Selecione uma aplicação na seção "Lançamento" para visualizar os gráficos.
           </div>
-          <div className="card-body">
-            <TotalGainsChart data={totalOverTime} />
-          </div>
-        </div>
+        )}
       </div>
+
+      <FullScreenModal 
+         isOpen={!!fullScreenChart} 
+         onClose={() => setFullScreenChart(null)}
+         title={
+           fullScreenChart === 'gainsByApp' ? 'Valor líquido por aplicação' :
+           fullScreenChart === 'totalGains' ? 'Ganhos Totais por Dia' :
+           'Evolução do Rendimento'
+         }
+       >
+         {fullScreenChart === 'gainsByApp' && (
+            <div style={{ height: '600px', minWidth: '600px' }}>
+                <GainsByAppChart 
+                    data={byApp} 
+                    applications={apps} 
+                    options={{ maintainAspectRatio: false }} 
+                />
+            </div>
+         )}
+          {fullScreenChart === 'totalGains' && (
+             <div style={{ height: '600px', minWidth: '600px' }}>
+                 <TotalGainsChart 
+                     data={totalOverTime} 
+                     initialValue={selectedApp ? selectedApp.initial_value : 0}
+                     options={{ maintainAspectRatio: false }} 
+                 />
+             </div>
+          )}
+         {fullScreenChart === 'yield' && (
+            <div style={{ height: '600px', minWidth: '600px' }}>
+               <YieldChart 
+                 key={`fs-${selectedAppId}`} 
+                 data={yieldData} 
+                 initialValue={selectedApp ? selectedApp.initial_value : 0} 
+                 appName={selectedApp ? selectedApp.name : ''}
+                 options={{ maintainAspectRatio: false }}
+               />
+            </div>
+         )}
+       </FullScreenModal>
     </div>
   )
 }

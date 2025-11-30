@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { useDatabase } from '../db/DatabaseContext.jsx'
 import { toast } from 'react-toastify'
 
-export default function EarningsForm() {
+export default function EarningsForm({ onAppSelect }) {
   const { ready, addEarning, updateEarning, deleteEarning, listApplications, listEarningsByApplication } = useDatabase()
   const apps = ready ? listApplications() : []
   const [form, setForm] = useState({ applicationId: '', date: '', gross: '', net: '' })
@@ -19,8 +19,8 @@ export default function EarningsForm() {
     listEarningsByApplication(selectedApp)
       .then(data => setEarnings(Array.isArray(data) ? data : []))
       .catch(err => {
-        console.error("Erro ao buscar rendimentos:", err)
-        toast.error("Erro ao carregar rendimentos")
+        console.error("Erro ao buscar lançamentos:", err)
+        toast.error("Erro ao carregar lançamentos")
         setEarnings([])
       })
   }, [selectedApp, ready, listEarningsByApplication])
@@ -29,22 +29,22 @@ export default function EarningsForm() {
     e.preventDefault()
     if (!ready) return
     if (!form.applicationId || !form.date || !form.gross || !form.net) {
-      toast.warn('Preencha Aplicação, Data, Bruto e Líquido')
+      toast.warn('Preencha Aplicação, Data, Valor bruto e Valor líquido')
       return
     }
     try {
       if (editingId) {
         await updateEarning({ id: editingId, ...form })
-        toast.success('Rendimento atualizado')
+        toast.success('Lançamento atualizado')
       } else {
         await addEarning(form)
-        toast.success('Rendimento lançado')
+        toast.success('Lançamento realizado')
       }
       setSelectedApp(form.applicationId)
       setForm({ applicationId: form.applicationId, date: '', gross: '', net: '' })
       setEditingId(null)
     } catch (err) {
-      toast.error(err?.message || 'Erro ao salvar rendimento')
+      toast.error(err?.message || 'Erro ao salvar lançamento')
     }
   }
 
@@ -68,10 +68,10 @@ export default function EarningsForm() {
     try {
       if (!window.confirm('Tem certeza que deseja excluir este lançamento?')) return
       await deleteEarning(id)
-      toast.success('Rendimento excluído')
+      toast.success('Lançamento excluído')
       if (editingId === id) cancelEdit()
     } catch (err) {
-      toast.error(err?.message || 'Erro ao excluir rendimento')
+      toast.error(err?.message || 'Erro ao excluir lançamento')
     }
   }
 
@@ -88,7 +88,12 @@ export default function EarningsForm() {
         <div className="row-3">
           <div>
             <label>Aplicação</label>
-            <select className="select" disabled={!ready} value={form.applicationId} onChange={e => setForm({ ...form, applicationId: e.target.value })}>
+            <select className="select" disabled={!ready} value={form.applicationId} onChange={e => {
+              const val = e.target.value
+              setForm({ ...form, applicationId: val })
+              if (val) setSelectedApp(val)
+              if (onAppSelect) onAppSelect(val)
+            }}>
               <option value="">Selecione...</option>
               {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
@@ -98,13 +103,13 @@ export default function EarningsForm() {
             <input className="input" disabled={!ready} type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
           </div>
           <div>
-            <label>Rendimento bruto</label>
+            <label>Valor bruto</label>
             <input className="input" disabled={!ready} type="number" step="0.01" value={form.gross} onChange={e => setForm({ ...form, gross: e.target.value })} />
           </div>
         </div>
         <div className="row">
           <div>
-            <label>Rendimento líquido</label>
+            <label>Valor líquido</label>
             <input className="input" disabled={!ready} type="number" step="0.01" value={form.net} onChange={e => setForm({ ...form, net: e.target.value })} />
           </div>
           <div style={{ alignSelf: 'end', display: 'flex', gap: 6 }}>
@@ -117,13 +122,7 @@ export default function EarningsForm() {
       </form>
 
       <div style={{ marginTop: 16 }}>
-        <div className="section-title">Rendimentos da aplicação selecionada</div>
-        <div style={{ marginBottom: 8 }}>
-          <select className="select" disabled={!ready} value={selectedApp} onChange={e => setSelectedApp(e.target.value)}>
-            <option value="">Selecione uma aplicação...</option>
-            {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-        </div>
+        <div className="section-title" style={{ textAlign: 'center' }}>Lançamentos da Aplicação</div>
         <table className="table">
           <thead>
             <tr>

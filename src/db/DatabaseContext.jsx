@@ -32,13 +32,17 @@ export function DatabaseProvider({ children }) {
     // Funções de Leitura (GET)
     const listApplications = async () => callApi(withUser('/applications'))
     
-    const getGainsByApplication = async (from, to) => {
+    const getGainsByApplication = async (from, to, applicationId) => {
       // Converte datas para string ISO compatível com o backend
-      return callApi(withUser(`/stats/gains-by-application?from=${from.toISOString()}&to=${to.toISOString()}`))
+      let url = `/stats/gains-by-application?from=${from.toISOString()}&to=${to.toISOString()}`
+      if (applicationId) url += `&applicationId=${applicationId}`
+      return callApi(withUser(url))
     }
     
-    const getTotalGainsOverTime = async (from, to) => {
-      return callApi(withUser(`/stats/total-over-time?from=${from.toISOString()}&to=${to.toISOString()}`))
+    const getTotalGainsOverTime = async (from, to, applicationId) => {
+      let url = `/stats/total-over-time?from=${from.toISOString()}&to=${to.toISOString()}`
+      if (applicationId) url += `&applicationId=${applicationId}`
+      return callApi(withUser(url))
     }
 
     // Funções de Leitura adicionais
@@ -128,8 +132,6 @@ export function useDatabase() {
 
   // Adiciona estados para as listas que eram síncronas (o AppShell precisa delas)
   const [apps, setApps] = useState([])
-  const [gainsByApp, setGainsByApp] = useState([])
-  const [totalGains, setTotalGains] = useState([])
   const [loading, setLoading] = useState(false)
 
   // useEffect para buscar os dados sempre que a aplicação precisar de refresh
@@ -138,22 +140,8 @@ export function useDatabase() {
       const fetchData = async () => {
         setLoading(true)
         try {
-          // 1. Define o range de datas padrão para busca (últimos 30 dias)
-          const defaultTo = new Date();
-          const defaultFrom = new Date(defaultTo.getTime() - 30 * 24 * 60 * 60 * 1000);
-            
-          // 2. Busca de TODOS os dados de forma concorrente
-          const [fetchedApps, fetchedGainsByApp, fetchedTotalGains] = await Promise.all([
-            _listApplications(),
-            _getGainsByApplication(defaultFrom, defaultTo),
-            _getTotalGainsOverTime(defaultFrom, defaultTo),
-          ]);
-          
-          // 3. Atualização dos estados
+          const fetchedApps = await _listApplications()
           setApps(fetchedApps)
-          setGainsByApp(fetchedGainsByApp)
-          setTotalGains(fetchedTotalGains)
-          
         } catch (e) {
           console.error("Erro ao buscar dados da API:", e);
         } finally {
@@ -162,7 +150,7 @@ export function useDatabase() {
       }
       fetchData();
     }
-  }, [api.ready, api.refreshKey, _listApplications, _getGainsByApplication, _getTotalGainsOverTime]) // Dependencies updated
+  }, [api.ready, api.refreshKey, _listApplications])
 
   // O retorno do hook precisa ser ajustado para ser compatível com AppShell
   return {
@@ -170,8 +158,8 @@ export function useDatabase() {
     loading: loading,
     // Retorna os estados preenchidos, atendendo a chamada síncrona do AppShell
     listApplications: () => apps,
-    getGainsByApplication: (from, to) => gainsByApp, // Simplified for now, ignoring from/to in sync call as fetched above
-    getTotalGainsOverTime: (from, to) => totalGains,
+    getGainsByApplication: _getGainsByApplication,
+    getTotalGainsOverTime: _getTotalGainsOverTime,
     ...rest 
   }
 }
