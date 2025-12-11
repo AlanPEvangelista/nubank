@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { DatabaseProvider, useDatabase } from './db/DatabaseContext.jsx'
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
 import { ToastContainer } from 'react-toastify'
+import { toast } from 'react-toastify'
 import { format, subDays } from 'date-fns'
 import GainsByAppChart from './components/GainsByAppChart.jsx'
 import TotalGainsChart from './components/TotalGainsChart.jsx'
@@ -13,7 +14,7 @@ import Login from './pages/Login.jsx'
 import FullScreenModal from './components/FullScreenModal.jsx'
 
 function AppShell() {
-  const { user, logout } = useAuth()
+  const { user, logout, mustChangePassword, changePassword } = useAuth()
   const { ready, listApplications, getGainsByApplication, getTotalGainsOverTime, listEarningsByApplication, setAdminUserId } = useDatabase()
   const [range, setRange] = useState(() => {
     const to = new Date()
@@ -28,6 +29,8 @@ function AppShell() {
   
   // Modal state
   const [fullScreenChart, setFullScreenChart] = useState(null) // 'gainsByApp', 'totalGains', 'yield'
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' })
 
   // Load users if admin
   useEffect(() => {
@@ -40,6 +43,10 @@ function AppShell() {
          .catch(console.error)
     }
   }, [user])
+
+  useEffect(() => {
+    if (mustChangePassword) setShowPasswordModal(true)
+  }, [mustChangePassword])
 
   // Propagate admin selection to database context
   useEffect(() => {
@@ -81,9 +88,10 @@ function AppShell() {
               <h1>Controle de Aplicações Nubank</h1>
               <p>Bem-vindo, {user.name} ({user.role === 'admin' ? 'Administrador' : 'Usuário'})</p>
             </div>
-            <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.2)', width: 'auto' }} onClick={logout}>
-              Sair
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.2)', width: 'auto' }} onClick={() => setShowPasswordModal(true)}>Alterar senha</button>
+              <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.2)', width: 'auto' }} onClick={logout}>Sair</button>
+            </div>
           </div>
           
           {user.role === 'admin' && (
@@ -100,6 +108,17 @@ function AppShell() {
                   <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
                 ))}
               </select>
+              <div style={{ marginTop: 8 }}>
+                <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={async () => {
+                  if (!selectedUser) { toast.warn('Selecione um usuário'); return }
+                  try {
+                    const res = await fetch('/admin/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: selectedUser }) })
+                    const data = await res.json()
+                    if (data.ok) toast.success('Senha resetada. Usuário deve trocá-la no próximo login.')
+                    else toast.error(data.error || 'Erro ao resetar senha')
+                  } catch (e) { toast.error('Erro de conexão') }
+                }}>Resetar senha</button>
+              </div>
             </div>
           )}
 
@@ -188,8 +207,8 @@ function AppShell() {
       </div>
 
       <FullScreenModal 
-         isOpen={!!fullScreenChart} 
-         onClose={() => setFullScreenChart(null)}
+        isOpen={!!fullScreenChart} 
+        onClose={() => setFullScreenChart(null)}
          title={
            fullScreenChart === 'gainsByApp' ? 'Valor líquido por aplicação' :
            fullScreenChart === 'totalGains' ? 'Ganhos Totais por Dia' :
@@ -225,7 +244,36 @@ function AppShell() {
                />
             </div>
          )}
-       </FullScreenModal>
+      </FullScreenModal>
+
+      <FullScreenModal 
+        isOpen={showPasswordModal} 
+        onClose={() => { if (!mustChangePassword) setShowPasswordModal(false) }}
+        title={mustChangePassword ? 'Defina uma nova senha' : 'Alterar senha'}
+      >
+        <div style={{ maxWidth: 420, margin: '0 auto' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label>Senha atual</label>
+            <input className="input" type="password" value={pwdForm.current} onChange={e => setPwdForm({ ...pwdForm, current: e.target.value })} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label>Nova senha</label>
+            <input className="input" type="password" value={pwdForm.next} onChange={e => setPwdForm({ ...pwdForm, next: e.target.value })} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label>Confirmar nova senha</label>
+            <input className="input" type="password" value={pwdForm.confirm} onChange={e => setPwdForm({ ...pwdForm, confirm: e.target.value })} />
+          </div>
+          <button className="btn" onClick={async () => {
+            const pw = pwdForm.next || ''
+            const ok1 = pw.length >= 6 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)
+            if (!ok1) { toast.warn('A senha deve ter maiúscula, minúscula, número, especial e 6+ caracteres'); return }
+            if (pwdForm.next !== pwdForm.confirm) { toast.warn('Confirmação diferente'); return }
+            const success = await changePassword(pwdForm.current, pwdForm.next)
+            if (success) { setPwdForm({ current: '', next: '', confirm: '' }); setShowPasswordModal(false) }
+          }}>Salvar senha</button>
+        </div>
+      </FullScreenModal>
     </div>
   )
 }

@@ -45,7 +45,8 @@ async function initDb() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
-      name TEXT
+      name TEXT,
+      must_change_password INTEGER DEFAULT 0
     );`)
     db.run(`CREATE TABLE IF NOT EXISTS applications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +79,8 @@ async function initDb() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
-      name TEXT
+      name TEXT,
+      must_change_password INTEGER DEFAULT 0
     );`)
     persist()
   }
@@ -89,6 +91,14 @@ async function initDb() {
   } catch (e) {
     console.log("Adding user_id to applications...")
     db.run("ALTER TABLE applications ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
+    persist()
+  }
+
+  // Ensure must_change_password column exists
+  try {
+    db.run("SELECT must_change_password FROM users LIMIT 1")
+  } catch (e) {
+    db.run("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0")
     persist()
   }
 
@@ -167,10 +177,10 @@ app.post('/auth/login', (req, res) => {
     const user = users[0]
     if (!bcrypt.compareSync(password, user.password)) return bad(res, 'Credenciais inválidas', 401)
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' })
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name, mustChangePassword: user.must_change_password === 1 }, JWT_SECRET, { expiresIn: '24h' })
     
     res.cookie('token', token, { httpOnly: true, secure: false }) // secure: true in production https
-    ok(res, { user: { id: user.id, email: user.email, role: user.role, name: user.name } })
+    ok(res, { user: { id: user.id, email: user.email, role: user.role, name: user.name, mustChangePassword: user.must_change_password === 1 } })
   } catch (e) { bad(res, e.message, 500) }
 })
 
@@ -181,6 +191,43 @@ app.post('/auth/logout', (req, res) => {
 
 app.get('/auth/me', authenticateToken, (req, res) => {
   ok(res, { user: req.user })
+})
+
+function isStrongPassword(pw) {
+  if (typeof pw !== 'string') return false
+  if (pw.length < 6) return false
+  const hasUpper = /[A-Z]/.test(pw)
+  const hasLower = /[a-z]/.test(pw)
+  const hasDigit = /[0-9]/.test(pw)
+  const hasSpecial = /[^A-Za-z0-9]/.test(pw)
+  return hasUpper && hasLower && hasDigit && hasSpecial
+}
+
+app.post('/auth/change-password', authenticateToken, (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {}
+    if (!currentPassword || !newPassword) return bad(res, 'Campos obrigatórios')
+    if (!isStrongPassword(newPassword)) return bad(res, 'Senha fora do padrão')
+    const user = selectAll('SELECT * FROM users WHERE id = ?', [req.user.id])[0]
+    if (!user) return bad(res, 'Usuário não encontrado', 404)
+    if (!bcrypt.compareSync(currentPassword, user.password)) return bad(res, 'Senha atual incorreta', 400)
+    const hash = bcrypt.hashSync(newPassword, 10)
+    run('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?', [hash, req.user.id])
+    ok(res, { changed: true })
+  } catch (e) { bad(res, e.message, 500) }
+})
+
+app.post('/admin/reset-password', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') return bad(res, 'Acesso restrito', 403)
+  try {
+    const { userId } = req.body || {}
+    if (!userId) return bad(res, 'userId é obrigatório')
+    const user = selectAll('SELECT * FROM users WHERE id = ?', [Number(userId)])[0]
+    if (!user) return bad(res, 'Usuário não encontrado', 404)
+    const hash = bcrypt.hashSync(user.email, 10)
+    run('UPDATE users SET password = ?, must_change_password = 1 WHERE id = ?', [hash, Number(userId)])
+    ok(res, { reset: true })
+  } catch (e) { bad(res, e.message, 500) }
 })
 
 // Protected Data Routes

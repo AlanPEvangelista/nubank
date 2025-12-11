@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react'
+import { useAuth } from '../auth/AuthContext.jsx'
 
 const DbCtx = createContext(null)
 
@@ -16,7 +17,8 @@ const callApi = async (path, options = {}) => {
 }
 
 export function DatabaseProvider({ children }) {
-  const [ready] = useState(true) 
+  const { user } = useAuth()
+  const ready = !!user
   const [refreshKey, setRefreshKey] = useState(0)
   const [adminUserId, setAdminUserId] = useState('')
   

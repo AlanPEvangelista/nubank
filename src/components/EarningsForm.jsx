@@ -10,6 +10,16 @@ export default function EarningsForm({ onAppSelect }) {
   const [editingId, setEditingId] = useState(null)
 
   const [earnings, setEarnings] = useState([])
+  const [grossDisplay, setGrossDisplay] = useState('')
+  const [netDisplay, setNetDisplay] = useState('')
+  const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  const onMoneyChange = (key, raw) => {
+    const digits = String(raw).replace(/\D/g, '')
+    const num = digits ? parseInt(digits, 10) / 100 : ''
+    setForm({ ...form, [key]: digits ? String(num) : '' })
+    if (key === 'gross') setGrossDisplay(digits ? formatBRL(num) : '')
+    if (key === 'net') setNetDisplay(digits ? formatBRL(num) : '')
+  }
 
   useEffect(() => {
     if (!ready || !selectedApp) {
@@ -42,6 +52,8 @@ export default function EarningsForm({ onAppSelect }) {
       }
       setSelectedApp(form.applicationId)
       setForm({ applicationId: form.applicationId, date: '', gross: '', net: '' })
+      setGrossDisplay('')
+      setNetDisplay('')
       setEditingId(null)
     } catch (err) {
       toast.error(err?.message || 'Erro ao salvar lançamento')
@@ -55,12 +67,16 @@ export default function EarningsForm({ onAppSelect }) {
       gross: String(e.gross),
       net: String(e.net),
     })
+    setGrossDisplay(formatBRL(Number(e.gross)))
+    setNetDisplay(formatBRL(Number(e.net)))
     setSelectedApp(String(e.application_id))
     setEditingId(e.id)
   }
 
   const cancelEdit = () => {
     setForm({ applicationId: selectedApp || '', date: '', gross: '', net: '' })
+    setGrossDisplay('')
+    setNetDisplay('')
     setEditingId(null)
   }
 
@@ -87,7 +103,7 @@ export default function EarningsForm({ onAppSelect }) {
       <form onSubmit={onSubmit}>
         <div className="row-3">
           <div>
-            <label>Aplicação</label>
+            <label>Aplicação {(!form.applicationId) && (<span className="attention-pulse" />)}</label>
             <select className="select" disabled={!ready} value={form.applicationId} onChange={e => {
               const val = e.target.value
               setForm({ ...form, applicationId: val })
@@ -104,13 +120,11 @@ export default function EarningsForm({ onAppSelect }) {
           </div>
           <div>
             <label>Valor bruto</label>
-            <input className="input" disabled={!ready} type="number" step="0.01" value={form.gross} onChange={e => setForm({ ...form, gross: e.target.value })} />
+            <input className="input" disabled={!ready} type="text" value={grossDisplay} onChange={e => onMoneyChange('gross', e.target.value)} placeholder="R$ 0,00" />
           </div>
-        </div>
-        <div className="row">
           <div>
             <label>Valor líquido</label>
-            <input className="input" disabled={!ready} type="number" step="0.01" value={form.net} onChange={e => setForm({ ...form, net: e.target.value })} />
+            <input className="input" disabled={!ready} type="text" value={netDisplay} onChange={e => onMoneyChange('net', e.target.value)} placeholder="R$ 0,00" />
           </div>
           <div style={{ alignSelf: 'end', display: 'flex', gap: 6 }}>
             <button className="btn btn-sm" disabled={!ready} type="submit">{editingId ? 'Salvar alterações' : 'Lançar'}</button>

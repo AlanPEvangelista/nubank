@@ -7,6 +7,15 @@ export default function ApplicationForm() {
   const [form, setForm] = useState({ name: '', startDate: '', initialValue: '', dueDate: '' })
   const [editingId, setEditingId] = useState(null)
   const apps = ready ? listApplications() : []
+  const [initialDisplay, setInitialDisplay] = useState('')
+
+  const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  const onInitialChange = (raw) => {
+    const digits = String(raw).replace(/\D/g, '')
+    const num = digits ? parseInt(digits, 10) / 100 : ''
+    setInitialDisplay(digits ? formatBRL(num) : '')
+    setForm({ ...form, initialValue: digits ? String(num) : '' })
+  }
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -24,6 +33,7 @@ export default function ApplicationForm() {
         toast.success('Aplicação cadastrada')
       }
       setForm({ name: '', startDate: '', initialValue: '', dueDate: '' })
+      setInitialDisplay('')
       setEditingId(null)
     } catch (err) {
       toast.error(err?.message || 'Erro ao salvar aplicação')
@@ -37,11 +47,13 @@ export default function ApplicationForm() {
       initialValue: String(a.initial_value),
       dueDate: a.due_date || ''
     })
+    setInitialDisplay(formatBRL(Number(a.initial_value)))
     setEditingId(a.id)
   }
 
   const cancelEdit = () => {
     setForm({ name: '', startDate: '', initialValue: '', dueDate: '' })
+    setInitialDisplay('')
     setEditingId(null)
   }
 
@@ -72,7 +84,7 @@ export default function ApplicationForm() {
         <div className="row">
           <div>
             <label>Valor inicial</label>
-            <input className="input" disabled={!ready} type="number" step="0.01" value={form.initialValue} onChange={e => setForm({ ...form, initialValue: e.target.value })} />
+            <input className="input" disabled={!ready} type="text" value={initialDisplay} onChange={e => onInitialChange(e.target.value)} placeholder="R$ 0,00" />
           </div>
           <div>
             <label>Vencimento</label>
