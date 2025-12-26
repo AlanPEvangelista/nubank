@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useDatabase } from '../db/DatabaseContext.jsx'
 import { toast } from 'react-toastify'
+import FullScreenModal from './FullScreenModal.jsx'
 
 export default function EarningsForm({ onAppSelect }) {
   const { ready, addEarning, updateEarning, deleteEarning, listApplications, listEarningsByApplication } = useDatabase()
@@ -8,8 +9,17 @@ export default function EarningsForm({ onAppSelect }) {
   const [form, setForm] = useState({ applicationId: '', date: '', gross: '', net: '' })
   const [selectedApp, setSelectedApp] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [showAllModal, setShowAllModal] = useState(false)
 
   const [earnings, setEarnings] = useState([])
+  
+  // Ordenar por data (mais recente primeiro)
+  const sortedEarnings = useMemo(() => {
+    return [...earnings].sort((a, b) => new Date(b.date) - new Date(a.date))
+  }, [earnings])
+
+  const displayedEarnings = sortedEarnings.slice(0, 6)
+
   const [grossDisplay, setGrossDisplay] = useState('')
   const [netDisplay, setNetDisplay] = useState('')
   const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -71,6 +81,7 @@ export default function EarningsForm({ onAppSelect }) {
     setNetDisplay(formatBRL(Number(e.net)))
     setSelectedApp(String(e.application_id))
     setEditingId(e.id)
+    setShowAllModal(false)
   }
 
   const cancelEdit = () => {
@@ -136,7 +147,12 @@ export default function EarningsForm({ onAppSelect }) {
       </form>
 
       <div style={{ marginTop: 16 }}>
-        <div className="section-title" style={{ textAlign: 'center' }}>Saldos da Aplicação</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+           <div className="section-title">Saldos da Aplicação (Últimos 6)</div>
+           {sortedEarnings.length > 6 && (
+             <button className="btn btn-sm" style={{ width: 'auto' }} onClick={() => setShowAllModal(true)}>Ver todos</button>
+           )}
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -147,7 +163,7 @@ export default function EarningsForm({ onAppSelect }) {
             </tr>
           </thead>
           <tbody>
-            {earnings.map(e => (
+            {displayedEarnings.map(e => (
               <tr key={e.id}>
                 <td>{e.date}</td>
                 <td>R$ {Number(e.gross).toFixed(2)}</td>
@@ -159,11 +175,43 @@ export default function EarningsForm({ onAppSelect }) {
               </tr>
             ))}
             {earnings.length === 0 && (
-              <tr><td colSpan={3} style={{ opacity: 0.7 }}>Nenhum saldo registrado</td></tr>
+              <tr><td colSpan={4} style={{ opacity: 0.7 }}>Nenhum saldo registrado</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <FullScreenModal
+        isOpen={showAllModal}
+        onClose={() => setShowAllModal(false)}
+        title={`Histórico Completo - ${apps.find(a => String(a.id) === selectedApp)?.name || ''}`}
+      >
+        <div style={{ minWidth: '600px', width: '100%', maxHeight: '80vh' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Bruto</th>
+                <th>Líquido</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedEarnings.map(e => (
+                <tr key={e.id}>
+                  <td>{e.date}</td>
+                  <td>R$ {Number(e.gross).toFixed(2)}</td>
+                  <td>R$ {Number(e.net).toFixed(2)}</td>
+                  <td>
+                    <button className="btn btn-sm" type="button" onClick={() => startEdit(e)} style={{ marginRight: 6 }}>Editar</button>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => removeEarning(e.id)}>Excluir</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </FullScreenModal>
     </div>
   )
 }
