@@ -209,6 +209,7 @@ function AppShell() {
                 <TaxChart 
                   key={`tax-${selectedAppId}`} 
                   data={yieldData} 
+                  initialValue={selectedApp ? selectedApp.initial_value : 0}
                   appName={selectedApp ? selectedApp.name : ''}
                 />
               </div>
@@ -265,6 +266,7 @@ function AppShell() {
                <TaxChart 
                  key={`fs-tax-${selectedAppId}`} 
                  data={yieldData} 
+                 initialValue={selectedApp ? selectedApp.initial_value : 0}
                  appName={selectedApp ? selectedApp.name : ''}
                  options={{ maintainAspectRatio: false }}
                />

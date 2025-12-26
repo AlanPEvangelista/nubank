@@ -15,7 +15,7 @@ import { format, parseISO } from 'date-fns'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
-export default function TaxChart({ data = [], appName = '', options: customOptions = {} }) {
+export default function TaxChart({ data = [], appName = '', initialValue = 0, options: customOptions = {} }) {
   // Ordena os dados por data (ascendente)
   const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date))
 
@@ -35,6 +35,9 @@ export default function TaxChart({ data = [], appName = '', options: customOptio
     return gross - net
   })
 
+  // Calcula valor líquido menos saldo inicial
+  const netValues = sortedData.map(d => Number(d.net) - Number(initialValue))
+
   const chartData = {
     labels,
     datasets: [
@@ -45,6 +48,14 @@ export default function TaxChart({ data = [], appName = '', options: customOptio
         backgroundColor: 'rgba(239, 68, 68, 0.2)',
         tension: 0.3,
         fill: true,
+      },
+      {
+        label: 'Rendimento Líquido (R$)',
+        data: netValues,
+        borderColor: 'rgba(34, 197, 94, 1)', // Verde
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.3,
+        fill: false,
       },
     ],
   }

@@ -1,7 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useDatabase } from '../db/DatabaseContext.jsx'
 import { toast } from 'react-toastify'
 import FullScreenModal from './FullScreenModal.jsx'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function EarningsForm({ onAppSelect }) {
   const { ready, addEarning, updateEarning, deleteEarning, listApplications, listEarningsByApplication } = useDatabase()
@@ -22,6 +24,18 @@ export default function EarningsForm({ onAppSelect }) {
 
   const [grossDisplay, setGrossDisplay] = useState('')
   const [netDisplay, setNetDisplay] = useState('')
+  
+  const formatDateWithDay = (dateStr) => {
+    try {
+      if (!dateStr) return ''
+      // Adiciona T12:00:00 para evitar problemas de fuso horário com datas YYYY-MM-DD
+      const date = parseISO(dateStr.length === 10 ? dateStr + 'T12:00:00' : dateStr)
+      return format(date, "dd/MM (eee)", { locale: ptBR })
+    } catch (e) {
+      return dateStr
+    }
+  }
+
   const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
   const onMoneyChange = (key, raw) => {
     const digits = String(raw).replace(/\D/g, '')
@@ -165,7 +179,7 @@ export default function EarningsForm({ onAppSelect }) {
           <tbody>
             {displayedEarnings.map(e => (
               <tr key={e.id}>
-                <td>{e.date}</td>
+                <td>{formatDateWithDay(e.date)}</td>
                 <td>R$ {Number(e.gross).toFixed(2)}</td>
                 <td>R$ {Number(e.net).toFixed(2)}</td>
                 <td>
@@ -199,7 +213,7 @@ export default function EarningsForm({ onAppSelect }) {
             <tbody>
               {sortedEarnings.map(e => (
                 <tr key={e.id}>
-                  <td>{e.date}</td>
+                  <td>{formatDateWithDay(e.date)}</td>
                   <td>R$ {Number(e.gross).toFixed(2)}</td>
                   <td>R$ {Number(e.net).toFixed(2)}</td>
                   <td>
