@@ -7,6 +7,7 @@ import { format, subDays } from 'date-fns'
 import GainsByAppChart from './components/GainsByAppChart.jsx'
 import TotalGainsChart from './components/TotalGainsChart.jsx'
 import YieldChart from './components/YieldChart.jsx'
+import TaxChart from './components/TaxChart.jsx'
 import ApplicationForm from './components/ApplicationForm.jsx'
 import EarningsForm from './components/EarningsForm.jsx'
 import FilterBar from './components/FilterBar.jsx'
@@ -146,7 +147,7 @@ function AppShell() {
 
         <div className="card col-6">
           <div className="card-header">
-            <span className="card-title" style={{ color: '#ef4444', fontWeight: 'bold' }}>Lançamento</span>
+            <span className="card-title" style={{ color: '#ef4444', fontWeight: 'bold' }}>Saldo da Aplicação</span>
           </div>
           <div className="card-body">
             <EarningsForm onAppSelect={setSelectedAppId} />
@@ -184,7 +185,7 @@ function AppShell() {
               </div>
             </div>
 
-            <div className="card col-12">
+            <div className="card col-6">
               <div className="card-header">
                 <span className="card-title">Evolução do Rendimento (vs. Inicial)</span>
                 <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setFullScreenChart('yield')}>🔍</button>
@@ -198,10 +199,24 @@ function AppShell() {
                 />
               </div>
             </div>
+
+            <div className="card col-6">
+              <div className="card-header">
+                <span className="card-title">Impostos por Saldo</span>
+                <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setFullScreenChart('tax')}>🔍</button>
+              </div>
+              <div className="card-body">
+                <TaxChart 
+                  key={`tax-${selectedAppId}`} 
+                  data={yieldData} 
+                  appName={selectedApp ? selectedApp.name : ''}
+                />
+              </div>
+            </div>
           </>
         ) : (
           <div className="card col-12" style={{ textAlign: 'center', padding: 40, opacity: 0.6 }}>
-            Selecione uma aplicação na seção "Lançamento" para visualizar os gráficos.
+            Selecione uma aplicação na seção "Saldo da Aplicação" para visualizar os gráficos.
           </div>
         )}
       </div>
@@ -212,7 +227,8 @@ function AppShell() {
          title={
            fullScreenChart === 'gainsByApp' ? 'Valor líquido por aplicação' :
            fullScreenChart === 'totalGains' ? 'Ganhos Totais por Dia' :
-           'Evolução do Rendimento'
+           fullScreenChart === 'yield' ? 'Evolução do Rendimento' :
+           'Impostos por Saldo'
          }
        >
          {fullScreenChart === 'gainsByApp' && (
@@ -239,6 +255,16 @@ function AppShell() {
                  key={`fs-${selectedAppId}`} 
                  data={yieldData} 
                  initialValue={selectedApp ? selectedApp.initial_value : 0} 
+                 appName={selectedApp ? selectedApp.name : ''}
+                 options={{ maintainAspectRatio: false }}
+               />
+            </div>
+         )}
+         {fullScreenChart === 'tax' && (
+            <div style={{ height: '600px', minWidth: '600px' }}>
+               <TaxChart 
+                 key={`fs-tax-${selectedAppId}`} 
+                 data={yieldData} 
                  appName={selectedApp ? selectedApp.name : ''}
                  options={{ maintainAspectRatio: false }}
                />

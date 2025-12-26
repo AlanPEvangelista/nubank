@@ -29,8 +29,8 @@ export default function EarningsForm({ onAppSelect }) {
     listEarningsByApplication(selectedApp)
       .then(data => setEarnings(Array.isArray(data) ? data : []))
       .catch(err => {
-        console.error("Erro ao buscar lançamentos:", err)
-        toast.error("Erro ao carregar lançamentos")
+        console.error("Erro ao buscar saldos:", err)
+        toast.error("Erro ao carregar saldos")
         setEarnings([])
       })
   }, [selectedApp, ready, listEarningsByApplication])
@@ -45,10 +45,10 @@ export default function EarningsForm({ onAppSelect }) {
     try {
       if (editingId) {
         await updateEarning({ id: editingId, ...form })
-        toast.success('Lançamento atualizado')
+        toast.success('Saldo atualizado')
       } else {
         await addEarning(form)
-        toast.success('Lançamento realizado')
+        toast.success('Saldo registrado')
       }
       setSelectedApp(form.applicationId)
       setForm({ applicationId: form.applicationId, date: '', gross: '', net: '' })
@@ -56,7 +56,7 @@ export default function EarningsForm({ onAppSelect }) {
       setNetDisplay('')
       setEditingId(null)
     } catch (err) {
-      toast.error(err?.message || 'Erro ao salvar lançamento')
+      toast.error(err?.message || 'Erro ao salvar saldo')
     }
   }
 
@@ -82,12 +82,12 @@ export default function EarningsForm({ onAppSelect }) {
 
   const removeEarning = async (id) => {
     try {
-      if (!window.confirm('Tem certeza que deseja excluir este lançamento?')) return
+      if (!window.confirm('Tem certeza que deseja excluir este saldo?')) return
       await deleteEarning(id)
-      toast.success('Lançamento excluído')
+      toast.success('Saldo excluído')
       if (editingId === id) cancelEdit()
     } catch (err) {
-      toast.error(err?.message || 'Erro ao excluir lançamento')
+      toast.error(err?.message || 'Erro ao excluir saldo')
     }
   }
 
@@ -127,7 +127,7 @@ export default function EarningsForm({ onAppSelect }) {
             <input className="input" disabled={!ready} type="text" value={netDisplay} onChange={e => onMoneyChange('net', e.target.value)} placeholder="R$ 0,00" />
           </div>
           <div style={{ alignSelf: 'end', display: 'flex', gap: 6 }}>
-            <button className="btn btn-sm" disabled={!ready} type="submit">{editingId ? 'Salvar alterações' : 'Lançar'}</button>
+            <button className="btn btn-sm" disabled={!ready} type="submit">{editingId ? 'Salvar alterações' : 'Registrar'}</button>
             {editingId && (
               <button className="btn btn-secondary btn-sm" type="button" onClick={cancelEdit}>Cancelar edição</button>
             )}
@@ -136,7 +136,7 @@ export default function EarningsForm({ onAppSelect }) {
       </form>
 
       <div style={{ marginTop: 16 }}>
-        <div className="section-title" style={{ textAlign: 'center' }}>Lançamentos da Aplicação</div>
+        <div className="section-title" style={{ textAlign: 'center' }}>Saldos da Aplicação</div>
         <table className="table">
           <thead>
             <tr>
@@ -159,7 +159,7 @@ export default function EarningsForm({ onAppSelect }) {
               </tr>
             ))}
             {earnings.length === 0 && (
-              <tr><td colSpan={3} style={{ opacity: 0.7 }}>Nenhum lançamento</td></tr>
+              <tr><td colSpan={3} style={{ opacity: 0.7 }}>Nenhum saldo registrado</td></tr>
             )}
           </tbody>
         </table>
