@@ -20,7 +20,7 @@ export default function EarningsForm({ onAppSelect }) {
     return [...earnings].sort((a, b) => new Date(b.date) - new Date(a.date))
   }, [earnings])
 
-  const displayedEarnings = sortedEarnings.slice(0, 5)
+  const displayedEarnings = sortedEarnings.slice(0, 6)
 
   const [grossDisplay, setGrossDisplay] = useState('')
   const [netDisplay, setNetDisplay] = useState('')
