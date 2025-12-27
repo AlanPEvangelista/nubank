@@ -20,7 +20,7 @@ export default function EarningsForm({ onAppSelect }) {
     return [...earnings].sort((a, b) => new Date(b.date) - new Date(a.date))
   }, [earnings])
 
-  const displayedEarnings = sortedEarnings.slice(0, 6)
+  const displayedEarnings = sortedEarnings.slice(0, 5)
 
   const [grossDisplay, setGrossDisplay] = useState('')
   const [netDisplay, setNetDisplay] = useState('')
@@ -162,8 +162,8 @@ export default function EarningsForm({ onAppSelect }) {
 
       <div style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-           <div className="section-title">Saldos da Aplicação (Últimos 6)</div>
-           {sortedEarnings.length > 6 && (
+           <div className="section-title">Saldos da Aplicação (Últimos 5)</div>
+           {sortedEarnings.length > 5 && (
              <button className="btn btn-sm" style={{ width: 'auto' }} onClick={() => setShowAllModal(true)}>Ver todos</button>
            )}
         </div>
