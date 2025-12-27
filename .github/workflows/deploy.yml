@@ -41,6 +41,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           source: "dist/*"
           target: "C:/apps/nubank/site"
+          debug: true
 
       - name: Passo remoto opcional (log)
         uses: appleboy/ssh-action@v0.1.10
@@ -49,5 +50,6 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          debug: true
           script: |
-            powershell -NoProfile -Command "Write-Host 'Deploy concluído em C:\\apps\\nubank\\site'"
+            echo "Deploy concluído no servidor!"
