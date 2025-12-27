@@ -162,8 +162,8 @@ export default function EarningsForm({ onAppSelect }) {
 
       <div style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-           <div className="section-title">Saldos da Aplicação (Últimos 5)</div>
-           {sortedEarnings.length > 5 && (
+           <div className="section-title">Saldos da Aplicação (Últimos 6)</div>
+           {sortedEarnings.length > 6 && (
              <button className="btn btn-sm" style={{ width: 'auto' }} onClick={() => setShowAllModal(true)}>Ver todos</button>
            )}
         </div>
