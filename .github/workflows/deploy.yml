@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "dist/*"
-          target: "C:/apps/nubank/site"
+          target: "/home/alan/nubank_trae"
           debug: true
 
       - name: Passo remoto opcional (log)
